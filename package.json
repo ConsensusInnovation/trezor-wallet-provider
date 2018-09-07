@@ -24,6 +24,9 @@
   },
   "dependencies": {
     "babel-runtime": "^6.23.0",
-    "ethereumjs-tx": "^1.3.3"
+    "ethereumjs-tx": "^1.3.3",
+    "ethereumjs-util": "^5.2.0",
+    "ethereumjs-wallet": "git+https://github.com/ConsensusInnovation/ethereumjs-wallet.git",
+    "hdkey": "git+https://github.com/ConsensusInnovation/hdkey.git"
   }
 }

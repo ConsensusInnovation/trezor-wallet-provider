@@ -3,15 +3,18 @@ import TrezorWallet from './TrezorWallet';
 
 export default async function (
   networkId,
-  pathOverride,
+  pathOverride
 ) {
   if(networkId == null) {
     networkId = 1; //default to mainnet network id
   }
   const trezor = new TrezorWallet(
     networkId,
-    pathOverride,
+    pathOverride
   );
 
-  return new HookedWalletSubprovider(trezor);
+  const TrezorWalletSubprovider = new HookedWalletSubprovider(trezor);
+  TrezorWalletSubprovider.trezor = trezor;
+
+  return TrezorWalletSubprovider;
 }

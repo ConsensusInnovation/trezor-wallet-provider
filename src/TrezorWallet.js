@@ -1,19 +1,54 @@
 import EthereumTx from 'ethereumjs-tx';
+import HdKey from 'ethereumjs-wallet/hdkey';
 import TrezorConnect from './trezorConnect';
+import * as ethUtil from 'ethereumjs-util';
 
 export default class TrezorWallet {
   constructor(networkId, path) {
     this.networkId = networkId; // Function which should return networkId
     this.getAccounts = this.getAccounts.bind(this);
+    this.getMultipleAccounts = this.getMultipleAccounts.bind(this);
     this.signTransaction = this.signTransaction.bind(this);
     this.setDerivationPath = this.setDerivationPath.bind(this);
+    this.signMessage = this.signMessage.bind(this);
     this.setDerivationPath(path);
+    this.setAccountNumber = this.setAccountNumber.bind(this);
+    this.setAccountNumber(0);
+  }
+
+  setAccountNumber(number) {
+    this.currentAccountNumer = number || 0;
   }
 
   setDerivationPath(path) {
     const newPath = path || "44'/60'/0'/0"; // default path for trezor
 
     this.path = newPath;
+  }
+
+  async getPublicKey() {
+    return new Promise((resolve, reject) => {
+      TrezorConnect.getXPubKey(this.path, (r) => {
+        if (! r.success) {
+          reject(r.error);
+        }
+        resolve(r.xpubkey);
+      });
+    });
+  }
+
+  async getMultipleAccounts(derivationPath, indexOffset, accountLength) {
+    try {
+      const key = await this.getPublicKey();
+      const accounts = [];
+      for (let i = indexOffset; i < indexOffset + accountLength; i += 1) {
+        const wallet = HdKey.fromExtendedKey(key).deriveChild(i);
+        accounts.push(wallet.getWallet().getAddressString());
+      };
+      return Promise.resolve(accounts);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
 
   static obtainPathComponentsFromDerivationPath(derivationPath) {
@@ -42,7 +77,7 @@ export default class TrezorWallet {
       tx.raw[8] = Buffer.from([]); // s
 
       TrezorConnect.ethereumSignTx(
-        this.path,
+        `${this.path}/${this.currentAccountNumer}`,
         TrezorWallet.makeHexEven(txData.nonce),
         TrezorWallet.makeHexEven(txData.gasPrice),
         TrezorWallet.makeHexEven(txData.gas),
@@ -51,32 +86,47 @@ export default class TrezorWallet {
         TrezorWallet.makeHexEven(txData.data),
         this.networkId,
         (r) => {
-          console.log(r);
           if (r.success) {
-            console.log(typeof r.v);
             tx.v = Buffer.from(r.v.toString(16), 'hex');
             tx.r = Buffer.from(r.r, 'hex');
             tx.s = Buffer.from(r.s, 'hex');
           } else {
             reject(r.error); // error message
           }
-          console.log(`0x${tx.serialize().toString('hex')}`);
           // return signed transaction
           resolve(`0x${tx.serialize().toString('hex')}`);
         });
     });
   }
 
+  async signMessageAsync(msgData) {
+    let message = msgData.data;
+    if (msgData.data.substr(0, 2) === '0x') {
+      message = ethUtil.toBuffer(message);
+    }
+    return new Promise((resolve, reject) => {
+      TrezorConnect.ethereumSignMessage(
+        `${this.path}/${this.currentAccountNumer}`,
+        message,
+        (r) => {
+          if (! r.success) {
+            reject(r.error);
+          } else {
+            resolve(r.signature);
+          }
+        }
+      );
+    });
+  }
+
   // Prepend 0 in case of uneven hex char count
   static makeHexEven(input) {
-    console.log(input);
     let output;
     if (input.length % 2 !== 0) {
       output = `0${input.slice(2)}`;
     } else {
       output = input.slice(2);
     }
-    console.log(output);
     return output;
   }
 
@@ -86,13 +136,9 @@ export default class TrezorWallet {
      * @param {failableCallback} callback
      */
   getAccounts(callback) {
-    TrezorConnect.ethereumGetAddress(this.path, (result) => {
-      if (result.success) {
-        callback(null, [`0x${result.address}`]);
-      } else {
-        callback(new Error('failed to get address from trezor'), null);
-      }
-    });
+    this.getMultipleAccounts(this.path, 0, 5)
+      .then(res => callback(null, res))
+      .catch(err => callback(err, null))
   }
 
   /**
@@ -106,9 +152,11 @@ export default class TrezorWallet {
       .catch(err => callback(err, null));
   }
 
-  // signMessage(txData, callback) {
-  //     this.signMessageAsync(txData)
-  //         .then(res => callback(null, res))
-  //         .catch(err => callback(err, null));
-  // }
+  signMessage(txData, callback) {
+    this.signMessageAsync(txData)
+      .then(res => callback(null, res))
+      .catch(err => {
+        callback(err, null)
+      });
+  }
 }
