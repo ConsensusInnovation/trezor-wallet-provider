@@ -843,8 +843,8 @@ function Channel(popup, waiting) {
   };
 
   const receive = function (event) {
-    const org1 = event.origin.match(/^.+\:\/\/[^\‌​/]+/)[0];
-    const org2 = popup.origin.match(/^.+\:\/\/[^\‌​/]+/)[0];
+    var org1 = new RegExp(event.origin.match(/^.+\:\/\/[^\‌​/]+/))[0];
+    var org2 = new RegExp(popup.origin.match(/^.+\:\/\/[^\‌​/]+/))[0];
     // if (event.source === popup.window && event.origin === popup.origin) {
     if (event.source === popup.window && org1 === org2) {
       respond(event.data);
