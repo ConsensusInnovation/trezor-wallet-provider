@@ -122,6 +122,9 @@ export default class TrezorWallet {
   // Prepend 0 in case of uneven hex char count
   static makeHexEven(input) {
     let output;
+    if (!input) {
+      return null;
+    }
     if (input.length % 2 !== 0) {
       output = `0${input.slice(2)}`;
     } else {
