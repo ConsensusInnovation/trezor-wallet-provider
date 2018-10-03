@@ -28,12 +28,17 @@ export default class TrezorWallet {
 
   async getPublicKey() {
     return new Promise((resolve, reject) => {
-      TrezorConnect.getXPubKey(this.path, (r) => {
-        if (! r.success) {
-          reject(r.error);
-        }
-        resolve(r.xpubkey);
-      });
+      if (this.publicKey) {
+        resolve(this.publicKey);
+      } else {
+        TrezorConnect.getXPubKey(this.path, (r) => {
+          if (! r.success) {
+            reject(r.error);
+          }
+          this.publicKey = r.xpubkey;
+          resolve(r.xpubkey);
+        });
+      }
     });
   }
 
