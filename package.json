@@ -1,6 +1,6 @@
 {
   "name": "trezor-wallet-provider",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Trezor wallet provider for the Web3 ProviderEngine",
   "main": "lib/index.js",
   "scripts": {
